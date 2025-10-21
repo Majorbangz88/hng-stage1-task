@@ -1,9 +1,6 @@
 package com.bigjoe.string_analyzer.service;
 
-import com.bigjoe.string_analyzer.exception.InvalidDataTypeException;
-import com.bigjoe.string_analyzer.exception.InvalidInputException;
-import com.bigjoe.string_analyzer.exception.StringNotFoundException;
-import com.bigjoe.string_analyzer.exception.StringAlreadyExistsException;
+import com.bigjoe.string_analyzer.exception.*;
 import org.springframework.stereotype.Service;
 
 import java.security.MessageDigest;
@@ -13,14 +10,13 @@ import java.util.*;
 @Service
 public class AnalyzeStringServiceImpl implements AnalyzeStringService {
 
-
+    Map<String, Object> response = new LinkedHashMap<>();
 
     public Map<String, Object> string_analyzer(String input) {
-        Map<String, Object> response = new LinkedHashMap<>();
 
         Map<String, Object> properties = new HashMap<>();
 
-        validateInput(input, response);
+        validateInput(input);
 
         int length = input.length();
         boolean is_palindrome = isPalindrome(input);
@@ -36,25 +32,31 @@ public class AnalyzeStringServiceImpl implements AnalyzeStringService {
         properties.put("sha256_hash", sha256_hash);
         properties.put("character_frequency_map", character_frequency_map);
 
-        response.put("id", sha256_hash);
-        response.put("value", input);
-        response.put("properties", properties);
-        response.put("created_at", java.time.Instant.now().toString());
+        Map<String, Object> record = new LinkedHashMap<>();
+        record.put("id", sha256_hash);
+        record.put("value", input);
+        record.put("properties", properties);
+        record.put("created_at", java.time.Instant.now().toString());
 
-        return response;
+        response.put(input, record);
+
+        return record;
     }
 
-    private void validateInput(String input, Map<String, Object> response) {
-        if (response.containsKey(input)) {
-            throw new StringAlreadyExistsException("String already exists in the system");
-        }
+    private void validateInput(String input) {
         if (input == null || input.trim().isEmpty()) {
             throw new InvalidInputException("Invalid request body or missing \"value\" field");
         }
-        if (!input.matches("^[\\p{Print}\\s]+$")) { // Allows printable characters
+
+        if (!input.matches("^[\\p{Print}\\s]+$")) {
             throw new InvalidDataTypeException("Invalid data type for \"value\" (must be string)");
         }
+
+        if (response.containsKey(input)) {
+            throw new StringAlreadyExistsException("String already exists in the system");
+        }
     }
+
 
     public boolean isPalindrome(String input) {
         String stringEntered = input.toLowerCase();
@@ -132,6 +134,25 @@ public class AnalyzeStringServiceImpl implements AnalyzeStringService {
 
         List<Map<String, Object>> filteredResults = new ArrayList<>();
 
+        processStringProperties(isPalindrome, minLength, maxLength, wordCount, containsCharacter, filteredResults);
+
+        Map<String, Object> responseBody = new LinkedHashMap<>();
+        responseBody.put("data", filteredResults);
+        responseBody.put("count", filteredResults.size());
+
+        Map<String, Object> filtersApplied = new LinkedHashMap<>();
+        if (isPalindrome != null) filtersApplied.put("is_palindrome", isPalindrome);
+        if (minLength != null) filtersApplied.put("min_length", minLength);
+        if (maxLength != null) filtersApplied.put("max_length", maxLength);
+        if (wordCount != null) filtersApplied.put("word_count", wordCount);
+        if (containsCharacter != null) filtersApplied.put("contains_character", containsCharacter);
+
+        responseBody.put("filters_applied", filtersApplied);
+
+        return responseBody;
+    }
+
+    private void processStringProperties(Boolean isPalindrome, Integer minLength, Integer maxLength, Integer wordCount, String containsCharacter, List<Map<String, Object>> filteredResults) {
         for (Object record : response.values()) {
             if (!(record instanceof Map)) continue;
 
@@ -151,21 +172,6 @@ public class AnalyzeStringServiceImpl implements AnalyzeStringService {
 
             filteredResults.add(stringData);
         }
-
-        Map<String, Object> responseBody = new LinkedHashMap<>();
-        responseBody.put("data", filteredResults);
-        responseBody.put("count", filteredResults.size());
-
-        Map<String, Object> filtersApplied = new LinkedHashMap<>();
-        if (isPalindrome != null) filtersApplied.put("is_palindrome", isPalindrome);
-        if (minLength != null) filtersApplied.put("min_length", minLength);
-        if (maxLength != null) filtersApplied.put("max_length", maxLength);
-        if (wordCount != null) filtersApplied.put("word_count", wordCount);
-        if (containsCharacter != null) filtersApplied.put("contains_character", containsCharacter);
-
-        responseBody.put("filters_applied", filtersApplied);
-
-        return responseBody;
     }
 
     private void validateQueryInputs(Boolean isPalindrome, Integer minLength, Integer maxLength,
@@ -188,66 +194,9 @@ public class AnalyzeStringServiceImpl implements AnalyzeStringService {
         String normalized = query.toLowerCase().trim();
 
         try {
-            if (normalized.contains("palindromic")) {
-                parsedFilters.put("is_palindrome", true);
-            }
+            validateFilterQuery(normalized, parsedFilters);
 
-            if (normalized.contains("single word")) {
-                parsedFilters.put("word_count", 1);
-            }
-
-            if (normalized.matches(".*longer than (\\d+) characters.*")) {
-                int minLength = Integer.parseInt(normalized.replaceAll(".*longer than (\\d+) characters.*", "$1")) + 1;
-                parsedFilters.put("min_length", minLength);
-            }
-
-            if (normalized.matches(".*letter ([a-zA-Z]).*")) {
-                String letter = normalized.replaceAll(".*letter ([a-zA-Z]).*", "$1").toLowerCase();
-                parsedFilters.put("contains_character", letter);
-            }
-
-            if (normalized.contains("first vowel")) {
-                parsedFilters.put("is_palindrome", true);
-                parsedFilters.put("contains_character", "a");
-            }
-
-            if (parsedFilters.isEmpty()) {
-                throw new InvalidInputException("Unable to parse natural language query");
-            }
-
-            List<Map<String, Object>> filteredData = new ArrayList<>();
-
-            for (Map.Entry<String, Object> entry : this.response.entrySet()) {
-                Map<String, Object> item = (Map<String, Object>) entry.getValue();
-                Map<String, Object> properties = (Map<String, Object>) item.get("properties");
-
-                boolean matches = true;
-
-                for (Map.Entry<String, Object> filter : parsedFilters.entrySet()) {
-                    String key = filter.getKey();
-                    Object value = filter.getValue();
-
-                    if (key.equals("is_palindrome") && !Objects.equals(properties.get("is_palindrome"), value)) {
-                        matches = false;
-                    } else if (key.equals("word_count") && !Objects.equals(properties.get("word_count"), value)) {
-                        matches = false;
-                    } else if (key.equals("min_length") && ((int) properties.get("length") < (int) value)) {
-                        matches = false;
-                    } else if (key.equals("contains_character")) {
-                        String charToFind = (String) value;
-                        String actualValue = (String) item.get("value");
-                        if (!actualValue.toLowerCase().contains(charToFind)) {
-                            matches = false;
-                        }
-                    }
-                }
-
-                if (matches) filteredData.add(item);
-            }
-
-            if (filteredData.isEmpty()) {
-                throw new IllegalArgumentException("422 Unprocessable Entity: Query parsed but resulted in no matching data");
-            }
+            List<Map<String, Object>> filteredData = getFilteredDataMaps(parsedFilters);
 
             response.put("data", filteredData);
             response.put("count", filteredData.size());
@@ -262,8 +211,74 @@ public class AnalyzeStringServiceImpl implements AnalyzeStringService {
         } catch (IllegalArgumentException e) {
             throw e;
         } catch (Exception e) {
-            throw new IllegalArgumentException("400 Bad Request: Unable to parse natural language query");
+            throw new InvalidInputException("Unable to parse natural language query");
         }
+    }
+
+    private static void validateFilterQuery(String normalized, Map<String, Object> parsedFilters) {
+        if (normalized.contains("palindromic")) {
+            parsedFilters.put("is_palindrome", true);
+        }
+
+        if (normalized.contains("single word")) {
+            parsedFilters.put("word_count", 1);
+        }
+
+        if (normalized.matches(".*longer than (\\d+) characters.*")) {
+            int minLength = Integer.parseInt(normalized.replaceAll(".*longer than (\\d+) characters.*", "$1")) + 1;
+            parsedFilters.put("min_length", minLength);
+        }
+
+        if (normalized.matches(".*letter ([a-zA-Z]).*")) {
+            String letter = normalized.replaceAll(".*letter ([a-zA-Z]).*", "$1").toLowerCase();
+            parsedFilters.put("contains_character", letter);
+        }
+
+        if (normalized.contains("first vowel")) {
+            parsedFilters.put("is_palindrome", true);
+            parsedFilters.put("contains_character", "a");
+        }
+
+        if (parsedFilters.isEmpty()) {
+            throw new InvalidInputException("Unable to parse natural language query");
+        }
+    }
+
+    private List<Map<String, Object>> getFilteredDataMaps(Map<String, Object> parsedFilters) {
+        List<Map<String, Object>> filteredData = new ArrayList<>();
+
+        for (Map.Entry<String, Object> entry : this.response.entrySet()) {
+            Map<String, Object> item = (Map<String, Object>) entry.getValue();
+            Map<String, Object> properties = (Map<String, Object>) item.get("properties");
+
+            boolean matches = true;
+
+            for (Map.Entry<String, Object> filter : parsedFilters.entrySet()) {
+                String key = filter.getKey();
+                Object value = filter.getValue();
+
+                if (key.equals("is_palindrome") && !Objects.equals(properties.get("is_palindrome"), value)) {
+                    matches = false;
+                } else if (key.equals("word_count") && !Objects.equals(properties.get("word_count"), value)) {
+                    matches = false;
+                } else if (key.equals("min_length") && ((int) properties.get("length") < (int) value)) {
+                    matches = false;
+                } else if (key.equals("contains_character")) {
+                    String charToFind = (String) value;
+                    String actualValue = (String) item.get("value");
+                    if (!actualValue.toLowerCase().contains(charToFind)) {
+                        matches = false;
+                    }
+                }
+            }
+
+            if (matches) filteredData.add(item);
+        }
+
+        if (filteredData.isEmpty()) {
+            throw new UnprocessableEntityException("422 Unprocessable Entity: Query parsed but resulted in no matching data");
+        }
+        return filteredData;
     }
 
 
