@@ -175,7 +175,7 @@ public class AnalyzeStringServiceImpl implements AnalyzeStringService {
 
     private void validateQueryInputs(Boolean isPalindrome, Integer minLength, Integer maxLength,
                                      Integer wordCount, String containsCharacter) {
-        if (isPalindrome || minLength != null && minLength < 0 || maxLength != null && maxLength < 0 ||
+        if (minLength != null && minLength < 0 || maxLength != null && maxLength < 0 ||
                 minLength != null && maxLength != null && minLength > maxLength || wordCount != null && wordCount < 0 ||
                 containsCharacter != null && containsCharacter.length() != 1) {
             throw new InvalidInputException("Invalid query parameter values or types");
