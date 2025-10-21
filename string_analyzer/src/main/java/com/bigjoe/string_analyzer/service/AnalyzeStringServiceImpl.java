@@ -57,7 +57,6 @@ public class AnalyzeStringServiceImpl implements AnalyzeStringService {
         }
     }
 
-
     public boolean isPalindrome(String input) {
         String stringEntered = input.toLowerCase();
         String reversed = new StringBuilder(stringEntered).reverse().toString();
@@ -281,5 +280,27 @@ public class AnalyzeStringServiceImpl implements AnalyzeStringService {
         return filteredData;
     }
 
+    public void deleteRecord(String input) {
+        if (input == null || input.trim().isEmpty()) {
+            throw new InvalidInputException("Invalid or missing string value");
+        }
+
+        String keyToRemove = null;
+
+        for (Map.Entry<String, Object> entry : response.entrySet()) {
+            Map<String, Object> record = (Map<String, Object>) entry.getValue();
+            String storedValue = (String) record.get("value");
+
+            if (storedValue.equalsIgnoreCase(input)) {
+                keyToRemove = entry.getKey(); // usually the SHA256 hash
+                break;
+            }
+        }
+
+        if (keyToRemove == null) {
+            throw new StringNotFoundException("String does not exist in the system");
+        }
+        response.remove(keyToRemove);
+    }
 
 }
