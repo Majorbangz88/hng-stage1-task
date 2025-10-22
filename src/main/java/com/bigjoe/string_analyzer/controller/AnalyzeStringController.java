@@ -5,6 +5,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -15,6 +17,20 @@ public class AnalyzeStringController {
 
     public AnalyzeStringController(AnalyzeStringServiceImpl analyzeStringService) {
         this.analyzeStringService = analyzeStringService;
+    }
+
+    @GetMapping("/")
+    public ResponseEntity<Map<String, Object>> home() {
+        Map<String, Object> response = new HashMap<>();
+        response.put("message:", "String Analyzer API is running 🚀");
+        response.put("endpoints", List.of(
+                "/api/strings (POST) - Analyze String",
+                "/api/strings/{string_value} (GET) - Get Specific String",
+                "/api/strings (GET) - Get All Strings (with filters)",
+                "/api/strings/filter-by-natural-language (GET)",
+                "/api/strings/{string_value} (DELETE)"
+        ));
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/strings")
