@@ -47,12 +47,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(response);
     }
 
-    // Catch-all fallback for other uncaught exceptions
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, String>> handleGenericException(Exception ex) {
-        Map<String, String> response = new HashMap<>();
-        response.put("error", "An unexpected error occurred");
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-    }
+//    // Catch-all fallback for other uncaught exceptions
+//    @ExceptionHandler(Exception.class)
+//    public ResponseEntity<Map<String, String>> handleGenericException(Exception ex) {
+//        Map<String, String> response = new HashMap<>();
+//        response.put("error", "An unexpected error occurred");
+//        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+//    }
 }
 

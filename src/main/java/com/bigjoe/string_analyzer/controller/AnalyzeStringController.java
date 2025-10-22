@@ -19,20 +19,6 @@ public class AnalyzeStringController {
         this.analyzeStringService = analyzeStringService;
     }
 
-    @GetMapping("/")
-    public ResponseEntity<Map<String, Object>> home() {
-        Map<String, Object> response = new HashMap<>();
-        response.put("message:", "String Analyzer API is running 🚀");
-        response.put("endpoints", List.of(
-                "/api/strings (POST) - Analyze String",
-                "/api/strings/{string_value} (GET) - Get Specific String",
-                "/api/strings (GET) - Get All Strings (with filters)",
-                "/api/strings/filter-by-natural-language (GET)",
-                "/api/strings/{string_value} (DELETE)"
-        ));
-        return ResponseEntity.ok(response);
-    }
-
     @PostMapping("/strings")
     public ResponseEntity<Map<String, Object>> analyzeString(@RequestBody Map<String, String> request) {
         String input = request.get("value");
